@@ -113,19 +113,20 @@ class Agent:
         ax.set_zlabel('P')
 
         # Adjust the limits, ticks and view angle
-        ax.set_zlim(0, 0.12)
+        ax.set_zlim(0, 0.12*self.get_id())
         ax.view_init(27, -21)
     
     
 class Environment:
     # Use it to store parameters and for ploting functions
-    def __init__(self, map_size = np.array([40, 40]), sigma = np.array([[40,0],[0,60]])):
+    def __init__(self, common_bk = np.array([]), map_size = np.array([40, 40]), sigma = np.array([[40,0],[0,60]])):
         self.width = map_size[0]
         self.height = map_size[1]
         self.X, self.Y = np.meshgrid(np.arange(self.width), np.arange(self.height))
         self.mu = np.array([self.width/2., self.height/2.]) # center point
         self.sigma = sigma # Bimodal covariance with no dependence.
         self.mat = [[0, 0], [-delta, 0], [-delta, delta], [0, delta], [delta, delta], [delta, 0], [delta, -delta], [0, -delta], [-delta, -delta]]
+        self.common_bk = common_bk
         
 print('-------------------------------------------------\n');
 print('> M-Agents search 2D (1 n-step ahead no comm)\n')
@@ -136,6 +137,7 @@ env = Environment()
 
 # Create bivariate gaussian distribution
 belief = bivariate_gaussian(env.width, env.height, env.mu, env.sigma, env.X, env.Y)
+env.common_bk = belief
 
 # Create agents
 agents = []
@@ -143,6 +145,8 @@ a0 = Agent(0, belief, env, np.array([5,5]))
 agents.append(a0)
 a1 = Agent(1, belief, env, np.array([30,30]))
 agents.append(a1)
+a2 = Agent(2, belief, env, np.array([0, 15]))
+agents.append(a2)
 
 # Global plot for animations
 fig = plt.figure()
@@ -171,31 +175,16 @@ found = 0  # target found
 #         ite += 1
 
 ## exercise 2
-import functools, operator
-
 if exercise == 2:
-    common_bk = bivariate_gaussian(env.width, env.height, env.mu, env.sigma, env.X, env.Y)
     while not found and ite < nite:
-
-        # common_bk = np.ones(belief.shape)
         for a in agents:
-            a.bk = common_bk.copy()
+            a.bk = env.common_bk
             a.next(a.next_best_state())
             a.update_belief()
-            # common_bk = np.multiply(common_bk, a.bk)
-
-        # Normalize common belief
-        # print(functools.reduce(operator.mul, [a.bk for a in agents]))
-        common_bk = np.ones(belief.shape)
-        for a in agents:
-            common_bk = np.multiply(common_bk, a.bk)
-        common_bk = np.divide(common_bk, np.sum(common_bk))
-        # print(np.sum(common_bk))
+            env.common_bk = a.bk
 
         for a in agents:
             a.plot(ax)
-            ax.cla() # clear axis plot
-            cset = ax.contourf(env.Y, env.X, common_bk, zdir='z', offset=-0.005, cmap=cm.viridis)
 
         # plot
         plt.draw()
