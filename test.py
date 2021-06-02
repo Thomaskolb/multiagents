@@ -16,6 +16,8 @@ dmax = 4 # Max distance
 sigma = 0.7 # Sensor spread (standard deviation)
 delta = 0.5 # Constant displacement
 
+exercise = 2
+
 def bivariate_gaussian(w, h, mu, Sigma, X, Y):
     COV_1 = np.linalg.inv(Sigma) # Compute the inverse Sigma^-1
     p = np.zeros(w*h) # probability map
@@ -96,11 +98,11 @@ class Agent:
       
     def plot(self, ax):
         # Reshape belief for plotting
-        bkx = self.bk.reshape((self.env.width, self.env.height))
+        # bkx = self.bk.reshape((self.env.width, self.env.height))
         ax.cla() # clear axis plot
         
         # plot contour of the P(\tau) -> self.bk
-        cset = ax.contourf(self.env.Y, self.env.X, bkx, zdir='z', offset=-0.005, cmap=cm.viridis)
+        cset = ax.contourf(self.env.Y, self.env.X, self.bk, zdir='z', offset=-0.005, cmap=cm.viridis)
 
         # plot agent trajectory, self.track
         ax.plot(self.track[:, 0], self.track[:, 1], np.ones(self.track.shape[0]) * self.height_plot, 'r-', linewidth=2);
@@ -139,8 +141,8 @@ belief = bivariate_gaussian(env.width, env.height, env.mu, env.sigma, env.X, env
 agents = []
 a0 = Agent(0, belief, env, np.array([5,5]))
 agents.append(a0)
-# a1 = Agent(1, belief, env, np.array([30,30]))
-# agents.append(a1)
+a1 = Agent(1, belief, env, np.array([30,30]))
+agents.append(a1)
 
 # Global plot for animations
 fig = plt.figure()
@@ -152,17 +154,52 @@ ite = 0  # iteration count
 nite = 200  # number of iterations
 found = 0  # target found
 
-## start search
-while not found and ite < nite:
+## exercise 1
+# if exercise == 1:
+#     while not found and ite < nite:
 
-    for a in agents:
-        a.next(a.next_best_state())
-        a.update_belief()
-        a.plot(ax)
-    
-    # plot
-    plt.draw()
-    plt.pause(0.1)  # animation
+#         for a in agents:
+#             a.next(a.next_best_state())
+#             a.update_belief()
+#             a.plot(ax)
 
-    # iteration count
-    ite += 1
+#         # plot
+#         plt.draw()
+#         plt.pause(0.01)  # animation
+
+#         # iteration count
+#         ite += 1
+
+## exercise 2
+import functools, operator
+
+if exercise == 2:
+    common_bk = bivariate_gaussian(env.width, env.height, env.mu, env.sigma, env.X, env.Y)
+    while not found and ite < nite:
+
+        # common_bk = np.ones(belief.shape)
+        for a in agents:
+            a.bk = common_bk.copy()
+            a.next(a.next_best_state())
+            a.update_belief()
+            # common_bk = np.multiply(common_bk, a.bk)
+
+        # Normalize common belief
+        # print(functools.reduce(operator.mul, [a.bk for a in agents]))
+        common_bk = np.ones(belief.shape)
+        for a in agents:
+            common_bk = np.multiply(common_bk, a.bk)
+        common_bk = np.divide(common_bk, np.sum(common_bk))
+        # print(np.sum(common_bk))
+
+        for a in agents:
+            a.plot(ax)
+            ax.cla() # clear axis plot
+            cset = ax.contourf(env.Y, env.X, common_bk, zdir='z', offset=-0.005, cmap=cm.viridis)
+
+        # plot
+        plt.draw()
+        plt.pause(0.01)  # animation
+
+        # iteration count
+        ite += 1
