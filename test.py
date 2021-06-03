@@ -1,24 +1,21 @@
 import numpy as np
 import math
-import numpy.matlib
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from mpl_toolkits.mplot3d import Axes3D
+# import matplotlib.image as mpimg
+# from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
-import matplotlib.colors as mcolors
+# import matplotlib.colors as mcolors
 import scipy.optimize as opt
-import os
-import sys
 import copy
 
-# Constants
-Pdmax = 0.8 # Max range sensor
-dmax = 4 # Max distance
-sigma = 0.7 # Sensor spread (standard deviation)
-delta = 0.5 # Constant displacement
 
+# Exercise variable, either 1, 2 or 3
 exercise = 3
 
+
+# ========================    IMPORTANT FUNCTIONS     ========================
+
+# Returns a bivariate guassian distribution
 def bivariate_gaussian(w, h, mu, Sigma, X, Y):
     COV_1 = np.linalg.inv(Sigma) # Compute the inverse Sigma^-1
     p = np.zeros(w*h) # probability map
@@ -30,45 +27,53 @@ def bivariate_gaussian(w, h, mu, Sigma, X, Y):
     P = p.reshape((w, h)) # rank 2 square matrix 
     return P
 
+# Returns the probability of non-detecting given the distance to the target
 def sensor_pnd(d, dmax, Pdmax, sigma):
     return 1 - Pdmax*math.exp(-sigma*(d/dmax)**2)
 
+# Returns the distance between (xi, xj) and (i,j)
 def distance(xi, xj, i, j):
     return math.sqrt((i - xi)**2 + (j - xj)**2)
 
+# Computes the multi utility
+def multi_utility(uk, agents, N, bk):
+    # Reshape the turning rates back to an N by M (len(agents)) matrix
+    uk = uk.reshape(N, len(agents))
+    value = 1
+    for i in range(len(agents)):
+        a = copy.deepcopy(agents[i])
+        for j in range(N):
+            a.next(uk[j, i])
+            for x in range(env.width):
+                for y in range(env.height):
+                    d = distance(a.x[0], a.x[1], x, y)
+                    value += sensor_pnd(d, dmax, Pdmax, sigma)*bk[x, y]
+    return value
+
+
+# ========================    CLASS DEFINITIONS     ========================
+
 class Agent:
-    def __init__(self, i, bk, env, state=np.array([0.,0.])):
-        self.id = i  # Create an instance variable
+    def __init__(self, bk, env, state=np.array([0.,0.])):
+        # The belief of the agent
         self.bk = bk
+        # The environment
         self.env = env
 
-        ## Agent params
+        # The state of the agent (tuple of floats)
         self.x = state
         self.track = self.x.T # Stores all positions. Aux variable for visualization of the agent path
         self.height_plot = 0.1
-        
-        # add extra agents params
-        
-        ## Sensor params
-        
-    # get id
-    def get_id(self):
-        return self.id
 
     # compute discrete forward states 1 step ahead
     def forward(self):
         return np.random.permutation(
             [[a+self.x[0], b+self.x[1]] for [a, b] in self.env.mat if a+self.x[0] >= 0 
              and a+self.x[0] < 40 and b+self.x[1] >= 0 and b+self.x[1] < 40])
-        
-    # computes utility of forward state
-#     def nodetect_observation(self, x):
-#         pnd = []
-#         return pnd
     
     # computes utility of states
     def utility(self, fs):
-        # compute cost funtion J of all potential forward states (brute force method)
+        # compute cost funtion J of all potential forward states
         J = []
         for state in fs:
             utility = 0
@@ -79,6 +84,7 @@ class Agent:
             J.append(utility)
         return J
     
+    # returns the next best state
     def next_best_state(self):
         fs = self.forward()
         J = self.utility(fs)
@@ -98,16 +104,12 @@ class Agent:
         self.bk = self.bk/np.sum(self.bk)
       
     def plot(self, ax):
-        # Reshape belief for plotting
-        # bkx = self.bk.reshape((self.env.width, self.env.height))
-
         # plot agent trajectory, self.track
         ax.plot(self.track[:, 0], self.track[:, 1], np.ones(self.track.shape[0]) * self.height_plot, 'r-', linewidth=2);
         ax.plot([self.track[-1, 0], self.track[-1, 0]], [self.track[-1, 1], self.track[-1, 1]], [self.height_plot, 0], 'ko-', linewidth=2);
 
 
 class AgentContinuous():
-
     # Constructor
     def __init__(self, state=np.array([0.,0.,0.])):
         self.V = 2  # Velocity of the agent
@@ -136,32 +138,10 @@ class AgentContinuous():
         self.track = np.vstack((self.track, self.x))
 
     def plot(self, ax):
+        # Plots the trajectory of the agent
         ax.plot(self.track[:, 0], self.track[:, 1], np.ones(self.track.shape[0]) * self.height_plot, 'r-', linewidth=2)
         ax.plot([self.track[-1, 0], self.track[-1, 0]], [self.track[-1, 1], self.track[-1, 1]], [self.height_plot, 0], 'ko-', linewidth=2)
 
-
-def multi_utility(uk, agents, N, bk):
-    uk = uk.reshape(N, len(agents))
-    # start_states = []
-    # for a in agents:
-    #     start_states.append(a.x)
-    value = 1
-    
-    for i in range(len(agents)):
-        a = copy.deepcopy(agents[i])
-        for j in range(N):
-            a.next(uk[j, i])
-            for x in range(env.width):
-                for y in range(env.height):
-                    d = distance(a.x[0], a.x[1], x, y)
-                    value += sensor_pnd(d, dmax, Pdmax, sigma)*bk[x, y]
-    # bk *= value
-    # for i in range(len(agents)):
-    #     agents[i].x = start_states[i]
-
-    # print(agents[0].x)
-    # print(value)
-    return value
 
 class Optimizer:
 
@@ -207,17 +187,33 @@ class Environment:
         ax.view_init(27, -21)
 
     def update_common_belief(self, state):
-        print("state", state[0], state[1])
         for x in range(self.width):
             for y in range(self.height):
                 d = distance(state[0], state[1], x, y)
                 self.common_bk[x, y] = sensor_pnd(d, dmax, Pdmax, sigma)*self.common_bk[x, y]
         self.common_bk = self.common_bk/np.sum(self.common_bk)
         
-print('-------------------------------------------------\n');
-print('> M-Agents search 2D (1 n-step ahead no comm)\n')
 
-nagents = 1
+
+## ========================    CONSTANTS/SETTINGS     ========================
+
+Pdmax = 0.8 # Max range sensor
+dmax = 4 # Max distance
+sigma = 0.7 # Sensor spread (standard deviation)
+delta = 0.5 # Constant displacement
+
+ite = 0  # iteration count
+nite = 50  # number of iterations
+found = 0  # target found
+
+# The number of agents
+nagents = 2
+
+# The number of steps ahead (only relevant for exercise 3)
+N = 3
+
+
+# ========================    INITIALIZATIONS FOR THE ALGORITHM     ========================
 # Create environment
 env = Environment()
 
@@ -227,24 +223,27 @@ env.common_bk = belief
 
 # Create agents
 agents = []
-a0 = Agent(0, belief, env, np.array([5,5]))
+a0 = Agent(belief, env, np.array([5,5]))
 agents.append(a0)
-a1 = Agent(1, belief, env, np.array([30,30]))
+a1 = Agent(belief, env, np.array([30,30]))
 agents.append(a1)
-a2 = Agent(2, belief, env, np.array([0, 15]))
+a2 = Agent(belief, env, np.array([0, 15]))
 agents.append(a2)
+
 
 agents_c = []
 ac0 = AgentContinuous(np.array([0., 0., 0.]))
 agents_c.append(ac0)
+ac1 = AgentContinuous(np.array([20., 0., 0.]))
+agents_c.append(ac1)
 
-# Start algorithm
-ite = 0  # iteration count
-nite = 5  # number of iterations
-found = 0  # target found
+
+# ========================    START ALGORITHM     ========================
+print('-------------------------------------------------\n')
 
 ## exercise 1
 if exercise == 1:
+    print('> M-Agents search 2D (1-step ahead, no common belief)\n')
     figs = []
     axs = []
     plt.ion()
@@ -252,7 +251,6 @@ if exercise == 1:
         figs.append(plt.figure())
         axs.append(figs[i].gca(projection='3d'))
     while not found and ite < nite:
-        # env.plot(ax, )
 
         for a in agents:
             a.next(a.next_best_state())
@@ -264,13 +262,14 @@ if exercise == 1:
 
         # plot
         plt.draw()
-        plt.pause(2)  # animation
+        plt.pause(0.01)  # animation
 
         # iteration count
         ite += 1
 
 ## exercise 2
 if exercise == 2:
+    print('> M-Agents search 2D (1-step ahead, with common belief)\n')
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     plt.ion()
@@ -295,24 +294,18 @@ if exercise == 2:
 
 ## exercise 3
 if exercise == 3:
+    print('> M-Agents search 2D (N-steps ahead, with common belief)\n')
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     plt.ion()
     opti = Optimizer()
-    N = 3
     while not found and ite < nite:
         x0 = np.full((N, nagents), 0.001)
-        print("optimize")
         turnrates = opti.optimize(multi_utility, x0.flatten(), copy.deepcopy(agents_c), N, copy.deepcopy(env.common_bk)).x.reshape(N, nagents)
-        print("----")
-        print(turnrates)
 
-        # before = env.common_bk
         for i in range(nagents):
             agents_c[i].next(turnrates[0, i])
             env.update_common_belief(agents_c[i].x)
-        # after = env.common_bk
-        # print(before == after)
 
         env.plot(ax, env.common_bk)
 
@@ -325,4 +318,3 @@ if exercise == 3:
 
         # iteration count
         ite += 1
-
