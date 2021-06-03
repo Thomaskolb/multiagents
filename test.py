@@ -9,6 +9,7 @@ import matplotlib.colors as mcolors
 import scipy.optimize as opt
 import os
 import sys
+import copy
 
 # Constants
 Pdmax = 0.8 # Max range sensor
@@ -115,6 +116,7 @@ class AgentContinuous():
         
         self.x = state
         self.track = self.x.T # Stores all positions
+        self.height_plot = 0.1
         
     # set next state
     def next(self, vk):
@@ -139,6 +141,7 @@ class AgentContinuous():
 
 
 def multi_utility(uk, agents, N, bk):
+    uk = uk.reshape(N, len(agents))
     value = 1
     for j in range(N):
         for i in range(len(agents)):
@@ -195,6 +198,7 @@ class Environment:
         ax.view_init(27, -21)
 
     def update_common_belief(self, state):
+        print(state[0], state[1])
         for x in range(self.width):
             for y in range(self.height):
                 d = distance(state[0], state[1], x, y)
@@ -222,12 +226,12 @@ a2 = Agent(2, belief, env, np.array([0, 15]))
 agents.append(a2)
 
 agents_c = []
-a0 = AgentContinuous(np.array([5, 5, 0]))
-agents_c.append(a0)
+ac0 = AgentContinuous(np.array([0, 0, 1]))
+agents_c.append(ac0)
 
 # Start algorithm
 ite = 0  # iteration count
-nite = 200  # number of iterations
+nite = 50  # number of iterations
 found = 0  # target found
 
 ## exercise 1
@@ -251,7 +255,7 @@ if exercise == 1:
 
         # plot
         plt.draw()
-        plt.pause(0.01)  # animation
+        plt.pause(2)  # animation
 
         # iteration count
         ite += 1
@@ -286,16 +290,18 @@ if exercise == 3:
     ax = fig.gca(projection='3d')
     plt.ion()
     opti = Optimizer()
-    N = 10
+    N = 3
     while not found and ite < nite:
-        x0 = np.full((nagents), 0.001)
-        turnrates = opti.optimize(multi_utility, x0, agents_c, N, env.common_bk)
+        x0 = np.full((N, nagents), 0.001)
+        turnrates = opti.optimize(multi_utility, x0.flatten(), copy.deepcopy(agents_c), N, copy.deepcopy(env.common_bk)).x.reshape(N, nagents)
         print(turnrates)
 
+        before = env.common_bk
         for i in range(nagents):
-            agent = agents_c[i]
-            agent.next(turnrates[0, i])
-            env.update_common_belief(agent.x)
+            agents_c[i].next(turnrates[0, i])
+            env.update_common_belief(agents_c[i].x)
+        after = env.common_bk
+        # print(before == after)
 
         env.plot(ax, env.common_bk)
 
