@@ -152,6 +152,7 @@ def multi_utility(uk, agents, N, bk):
                     d = distance(a.x[0], a.x[1], x, y)
                     value *= sensor_pnd(d, dmax, Pdmax, sigma)
     bk *= value
+    print(agents[0].x)
     return np.sum(bk)
 
 class Optimizer:
@@ -198,7 +199,7 @@ class Environment:
         ax.view_init(27, -21)
 
     def update_common_belief(self, state):
-        print(state[0], state[1])
+        print("state", state[0], state[1])
         for x in range(self.width):
             for y in range(self.height):
                 d = distance(state[0], state[1], x, y)
@@ -231,7 +232,7 @@ agents_c.append(ac0)
 
 # Start algorithm
 ite = 0  # iteration count
-nite = 50  # number of iterations
+nite = 5  # number of iterations
 found = 0  # target found
 
 ## exercise 1
@@ -293,7 +294,9 @@ if exercise == 3:
     N = 3
     while not found and ite < nite:
         x0 = np.full((N, nagents), 0.001)
+        print("optimize")
         turnrates = opti.optimize(multi_utility, x0.flatten(), copy.deepcopy(agents_c), N, copy.deepcopy(env.common_bk)).x.reshape(N, nagents)
+        print("----")
         print(turnrates)
 
         before = env.common_bk
