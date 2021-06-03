@@ -142,18 +142,26 @@ class AgentContinuous():
 
 def multi_utility(uk, agents, N, bk):
     uk = uk.reshape(N, len(agents))
+    # start_states = []
+    # for a in agents:
+    #     start_states.append(a.x)
     value = 1
-    for j in range(N):
-        for i in range(len(agents)):
-            a = agents[i]
+    
+    for i in range(len(agents)):
+        a = copy.deepcopy(agents[i])
+        for j in range(N):
             a.next(uk[j, i])
             for x in range(env.width):
                 for y in range(env.height):
                     d = distance(a.x[0], a.x[1], x, y)
-                    value *= sensor_pnd(d, dmax, Pdmax, sigma)
-    bk *= value
-    print(agents[0].x)
-    return np.sum(bk)
+                    value += sensor_pnd(d, dmax, Pdmax, sigma)*bk[x, y]
+    # bk *= value
+    # for i in range(len(agents)):
+    #     agents[i].x = start_states[i]
+
+    # print(agents[0].x)
+    # print(value)
+    return value
 
 class Optimizer:
 
@@ -227,7 +235,7 @@ a2 = Agent(2, belief, env, np.array([0, 15]))
 agents.append(a2)
 
 agents_c = []
-ac0 = AgentContinuous(np.array([0, 0, 1]))
+ac0 = AgentContinuous(np.array([0., 0., 0.]))
 agents_c.append(ac0)
 
 # Start algorithm
@@ -299,11 +307,11 @@ if exercise == 3:
         print("----")
         print(turnrates)
 
-        before = env.common_bk
+        # before = env.common_bk
         for i in range(nagents):
             agents_c[i].next(turnrates[0, i])
             env.update_common_belief(agents_c[i].x)
-        after = env.common_bk
+        # after = env.common_bk
         # print(before == after)
 
         env.plot(ax, env.common_bk)
