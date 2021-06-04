@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import scipy.optimize as opt
 import copy
@@ -10,7 +11,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Exercise variable, either 1, 2 or 3
-exercise = 2
+exercise = 3
 
 
 # ========================    IMPORTANT FUNCTIONS     ========================
